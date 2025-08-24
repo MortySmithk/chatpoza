@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<!-- Todo o seu <head> continua o mesmo... -->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poza</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code&display=swap" rel="stylesheet">
+    <style>
+        /* Todos os seus estilos continuam os mesmos... */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #131314; /* Cor de fundo principal do Gemini */
+            color: #e3e3e3; /* Cor de texto principal */
+            overflow: hidden;
+        }
+        .bg-sidebar { background-color: #1e1f20; }
+        .bg-input-area { background-color: #1e1f20; }
+        .bg-hover:hover { background-color: #2d2e30; }
+        .bg-active { background-color: #3c4043; }
+        .border-color { border-color: #3c4043; }
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #3c4043; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background-color: #1e1f20; }
+        .hidden { display: none; }
+        @keyframes typing-bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
+        .typing-dot { animation: typing-bounce 1.4s infinite ease-in-out both; }
+        .model-menu { transition: opacity 0.3s ease, transform 0.3s ease; }
+        .bot-message { max-width: 90%; }
+        @media (min-width: 768px) { .bot-message { max-width: 720px; } }
+        .drag-over { background-color: rgba(138, 180, 248, 0.1); border: 2px dashed #8ab4f8; }
+        .gradient-text {
+            background: -webkit-linear-gradient(45deg, #4285F4, #9B72CB, #D96570, #F2A60C);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        #canvas-container, #sidebar {
+            transition: transform 0.3s ease-in-out;
+        }
+        @media (max-width: 767.98px) {
+            #sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100%;
+                z-index: 50;
+                transform: translateX(-100%);
+            }
+            #sidebar.show {
+                transform: translateX(0);
+            }
+        }
+        #code-editor-container { position: relative; height: 100%; font-family: 'Fira Code', monospace; }
+        #code-editor, #syntax-highlighter {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            padding: 1rem; line-height: 1.6; white-space: pre; overflow-wrap: normal; overflow: auto;
+            border-radius: 0.375rem; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+        }
+        #code-editor { background: transparent; color: transparent; caret-color: #e8eaed; z-index: 2; }
+        #syntax-highlighter { background-color: #202124; color: #e8eaed; pointer-events: none; z-index: 1; }
+        .canvas-header-btn {
+            display: inline-flex; align-items: center; gap: 0.5rem; background-color: #3c4043; color: #e8eaed;
+            padding: 0.5rem 1rem; border-radius: 0.5rem; font-weight: 500; transition: background-color 0.2s;
+        }
+        .canvas-header-btn:hover:not(:disabled) { background-color: #5f6368; }
+        .canvas-header-btn.active { background-color: #1a73e8; color: white; }
+        .canvas-header-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .token.comment { color: #6a9955; } .token.punctuation { color: #d4d4d4; } .token.tag { color: #569cd6; }
+        .token.selector { color: #d7ba7d; } .token.attr-name { color: #9cdcfe; } .token.property { color: #9cdcfe; }
+        .token.attr-value { color: #ce9178; } .token.string { color: #ce9178; } .token.keyword { color: #c586c0; }
+        .token.function { color: #dcdcaa; } .token.number { color: #b5cea8; } .token.operator { color: #d4d4d4; }
+    </style>
+</head>
+<body>
+    <!-- Todo o seu <body> continua o mesmo até a tag <script> -->
+
+    <div id="auth-screen" class="flex items-center justify-center h-screen bg-cover bg-center" style="background-image: linear-gradient(rgba(18, 18, 18, 0.8), rgba(18, 18, 18, 0.8)), url('https://placehold.co/1920x1080/131314/8ab4f8?text=Poza');">
+        <div class="w-full max-w-md p-8 space-y-6 bg-[#1a1a1a] bg-opacity-90 rounded-2xl shadow-2xl backdrop-blur-sm border border-gray-800">
+            <div class="text-center">
+                <h1 class="text-4xl font-bold text-white">Bem-vindo ao Poza</h1>
+                <p class="text-gray-400 mt-2">Seu assistente de IA pessoal.</p>
+            </div>
+            <form id="email-form" class="space-y-4" onsubmit="return false;">
+                <input id="email" type="email" placeholder="Email" class="w-full px-4 py-3 bg-[#2a2a2a] border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                <input id="password" type="password" placeholder="Senha" class="w-full px-4 py-3 bg-[#2a2a2a] border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" required>
+                <div class="flex space-x-2">
+                    <button type="button" id="login-btn" class="w-full py-3 font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">Entrar</button>
+                    <button type="button" id="signup-btn" class="w-full py-3 font-semibold text-white bg-gray-600 rounded-lg hover:bg-gray-700 transition-colors">Cadastrar</button>
+                </div>
+            </form>
+            <div class="relative flex items-center">
+                <div class="flex-grow border-t border-gray-600"></div>
+                <span class="flex-shrink mx-4 text-gray-400">OU</span>
+                <div class="flex-grow border-t border-gray-600"></div>
+            </div>
+            <button id="google-login-btn" class="w-full flex items-center justify-center py-3 space-x-2 bg-white text-black font-semibold rounded-lg hover:bg-gray-200 transition-colors">
+                <svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.82l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path><path fill="none" d="M0 0h48v48H0z"></path></svg>
+                <span>Entrar com Google</span>
+            </button>
+            <p id="auth-error" class="text-red-500 text-center text-sm mt-2"></p>
+        </div>
+    </div>
+
+    <div id="app-screen" class="hidden relative h-screen w-full md:flex">
+        <aside id="sidebar" class="w-64 bg-sidebar flex flex-col flex-shrink-0 h-full p-2">
+            <div class="flex-shrink-0 p-2">
+                 <button id="mobile-menu-btn" class="p-2 rounded-full hover:bg-hover transition-colors">
+                    <svg class="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+                </button>
+            </div>
+
+            <div class="mt-4 flex-shrink-0">
+                 <button id="new-chat-btn" class="w-full flex items-center justify-between p-2 rounded-full bg-hover transition-colors text-sm font-medium">
+                    <div class="flex items-center gap-3 ml-2">
+                         <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 10H20M12 4V6M12 18V20M10 20H14M4 12H6M20 12H22M6 12H18M18 12C18 15.3137 15.3137 18 12 18C8.68629 18 6 15.3137 6 12C6 8.68629 8.68629 6 12 6C15.3137 6 18 8.68629 18 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                        <span>Poza</span>
+                    </div>
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                </button>
+            </div>
+            
+            <nav class="mt-6 flex-grow overflow-y-auto custom-scrollbar pr-1">
+                <h3 class="px-3 text-sm font-medium text-gray-400">Recentes</h3>
+                <ul id="history-list" class="mt-2 space-y-1"></ul>
+            </nav>
+
+            <div class="flex-shrink-0 border-t border-color mt-2 pt-2">
+                <button id="settings-btn" class="w-full flex items-center p-3 rounded-lg hover:bg-hover transition-colors">
+                     <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.546-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                     <span class="ml-3 font-medium text-sm">Ajuda</span>
+                </button>
+                 <button id="logout-btn" class="w-full flex items-center p-3 rounded-lg hover:bg-hover transition-colors">
+                     <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                     <span class="ml-3 font-medium text-sm">Configurações</span>
+                </button>
+            </div>
+        </aside>
+
+        <main id="main-content" class="flex-1 flex flex-col h-screen bg-[#131314]">
+            <header class="flex-shrink-0 flex items-center justify-between p-2">
+                <button id="model-selector-btn" class="flex items-center gap-2 text-lg p-2 rounded-lg hover:bg-hover">
+                    <span id="current-model-name">Poza 2.5 Pro</span>
+                    <svg class="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+                </button>
+                <div id="user-profile" class="flex items-center p-1 rounded-full hover:bg-hover cursor-pointer">
+                    <div id="user-avatar" class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-white"></div>
+                </div>
+
+                <div id="model-menu" class="absolute top-14 left-4 w-64 bg-sidebar rounded-lg shadow-lg p-2 z-20 hidden opacity-0 transform scale-95 model-menu">
+                    <ul>
+                        <li><button data-model="pro" class="model-option w-full text-left p-2 rounded hover:bg-[#3a3a3a]"><strong>Poza Pro</strong><p class="text-xs text-gray-400">O melhor para o dia a dia.</p></button></li>
+                        <li><button data-model="flash" class="model-option w-full text-left p-2 rounded hover:bg-[#3a3a3a]"><strong>Poza Flash</strong><p class="text-xs text-gray-400">Responde rapidamente.</p></button></li>
+                    </ul>
+                </div>
+            </header>
+
+            <div id="chat-area" class="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col">
+                <div id="chat-messages" class="w-full max-w-4xl mx-auto mt-auto">
+                    </div>
+                <div id="welcome-message" class="w-full max-w-4xl mx-auto my-auto text-center">
+                    <h1 class="text-5xl font-bold gradient-text">Olá, <span id="welcome-user-name"></span></h1>
+                    <p class="text-gray-400 text-xl mt-2">Como posso te ajudar hoje?</p>
+                </div>
+            </div>
+
+            <div class="w-full max-w-4xl mx-auto p-4 flex-shrink-0">
+                 <form id="chat-form" class="relative">
+                    <div class="w-full bg-input-area border border-color rounded-2xl p-4 flex items-end gap-3">
+                        <textarea id="chat-input" class="w-full bg-transparent resize-none focus:outline-none text-base" rows="1" placeholder="Pergunte alguma coisa..."></textarea>
+                        <button id="send-button" type="submit" class="p-2 bg-hover rounded-full hover:bg-active disabled:opacity-50 transition-colors">
+                            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M3 19V5L21 12L3 19ZM5 17L16.85 12L5 7V10.5L11 12L5 13.5V17Z"/></svg>
+                        </button>
+                        <button id="stop-button" type="button" class="hidden p-2 bg-red-600 rounded-full hover:bg-red-500 transition-colors">
+                            <svg class="w-6 h-6" fill="white" viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+                        </button>
+                    </div>
+                </form>
+                <div class="flex items-center gap-2 mt-3 px-2">
+                    <button class="flex items-center gap-2 p-2 rounded-lg bg-hover text-sm hover:bg-active">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        <span>Imagem</span>
+                    </button>
+                     <button id="canvas-toggle-btn" class="flex items-center gap-2 p-2 rounded-lg bg-hover text-sm hover:bg-active">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l-4 4-4-4 4-16"></path></svg>
+                        <span>Canvas</span>
+                    </button>
+                </div>
+                <p class="text-center text-xs text-gray-500 mt-4">Poza pode cometer erros. Considere verificar informações importantes.</p>
+            </div>
+        </main>
+        
+        <div id="canvas-container" class="w-full md:w-2/3 h-screen flex-shrink-0 flex flex-col bg-[#1e1e1e] border-l border-color hidden absolute right-0 top-0 md:relative z-30 md:z-auto">
+            <header class="flex-shrink-0 flex items-center justify-between p-3 border-b border-gray-700">
+                <h2 id="file-title" class="font-semibold text-lg truncate">Canvas</h2>
+                <div class="flex items-center gap-2">
+                    <button id="code-tab-btn" class="canvas-header-btn active">Código</button>
+                    <button id="preview-tab-btn" class="canvas-header-btn" disabled>Prévia</button>
+                    <button id="share-btn" class="canvas-header-btn">Compartilhar</button>
+                    <button id="close-canvas-btn" class="p-2 rounded-full hover:bg-[#3c4043] text-gray-400 hover:text-white" title="Fechar Canvas">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+            </header>
+            <div class="flex-1 p-1 overflow-hidden">
+                <div id="code-view" class="w-full h-full">
+                    <div id="code-editor-container">
+                        <pre id="syntax-highlighter" class="custom-scrollbar" aria-hidden="true"><code></code></pre>
+                        <textarea id="code-editor" class="custom-scrollbar focus:outline-none resize-none" spellcheck="false" wrap="off"></textarea>
+                    </div>
+                </div>
+                <div id="preview-view" class="w-full h-full hidden">
+                    <iframe id="preview-iframe" class="w-full h-full bg-white border-0 rounded-b-lg"></iframe>
+                </div>
+            </div>
+            <div id="copy-notification" class="absolute bottom-5 right-5 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg hidden">
+                Código copiado!
+            </div>
+        </div>
+        <div id="sidebar-overlay" class="hidden md:hidden fixed inset-0 bg-black bg-opacity-50 z-40"></div>
+    </div>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        
+        // A CHAVE DA API FOI REMOVIDA DAQUI
+        const firebaseConfig = {
+            apiKey: "SUA_CHAVE_FIREBASE_AQUI", // <-- Substitua pela sua chave do Firebase
+            authDomain: "chatpoza.firebaseapp.com",
+            projectId: "chatpoza",
+            storageBucket: "chatpoza.appspot.com",
+            messagingSenderId: "414717501420",
+            appId: "1:414717501420:web:7f8867250094fa74efeac9"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        // ... o resto do seu código de autenticação ...
+
+        // --- Seletores de Elementos (continua o mesmo) ---
+        const authScreen = document.getElementById('auth-screen');
+        const appScreen = document.getElementById('app-screen');
+        const mainContent = document.getElementById('main-content');
+        const sidebar = document.getElementById('sidebar');
+        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+        const sidebarOverlay = document.getElementById('sidebar-overlay');
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const loginBtn = document.getElementById('login-btn');
+        const signupBtn = document.getElementById('signup-btn');
+        const googleLoginBtn = document.getElementById('google-login-btn');
+        const logoutBtn = document.getElementById('logout-btn');
+        const authError = document.getElementById('auth-error');
+        const userAvatar = document.getElementById('user-avatar');
+        const chatForm = document.getElementById('chat-form');
+        const chatInput = document.getElementById('chat-input');
+        const chatMessages = document.getElementById('chat-messages');
+        const chatArea = document.getElementById('chat-area');
+        const sendButton = document.getElementById('send-button');
+        const stopButton = document.getElementById('stop-button');
+        const modelSelectorBtn = document.getElementById('model-selector-btn');
+        const modelMenu = document.getElementById('model-menu');
+        const currentModelName = document.getElementById('current-model-name');
+        const canvasContainer = document.getElementById('canvas-container');
+        const fileTitle = document.getElementById('file-title');
+        const closeCanvasBtn = document.getElementById('close-canvas-btn');
+        const canvasToggleBtn = document.getElementById('canvas-toggle-btn');
+        const codeTabBtn = document.getElementById('code-tab-btn');
+        const previewTabBtn = document.getElementById('preview-tab-btn');
+        const shareBtn = document.getElementById('share-btn');
+        const copyNotification = document.getElementById('copy-notification');
+        const codeView = document.getElementById('code-view');
+        const previewView = document.getElementById('preview-view');
+        const codeEditor = document.getElementById('code-editor');
+        const previewIframe = document.getElementById('preview-iframe');
+        const syntaxHighlighter = document.getElementById('syntax-highlighter').querySelector('code');
+        const historyList = document.getElementById('history-list');
+        const welcomeMessage = document.getElementById('welcome-message');
+        const welcomeUserName = document.getElementById('welcome-user-name');
+        
+        let currentModel = 'pro';
+        let isTyping = false;
+        let streamingInterval = null;
+
+        const modelConfig = {
+            'pro': { name: 'Poza Pro', modelId: 'gemini-1.5-pro-latest' }, // Modelo mais poderoso
+            'flash': { name: 'Poza Flash', modelId: 'gemini-1.5-flash-latest' }
+        };
+
+        // --- O resto das suas funções (renderUserMessage, etc) continua o mesmo ---
+        function checkWelcomeMessageVisibility() {
+            if (chatMessages.children.length === 0) {
+                welcomeMessage.classList.remove('hidden');
+            } else {
+                welcomeMessage.classList.add('hidden');
+            }
+        }
+        
+        function highlight(code) {
+            let highlightedCode = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            syntaxHighlighter.innerHTML = highlightedCode;
+        }
+
+        function syncEditor() {
+            const code = codeEditor.value;
+            highlight(code);
+            syntaxHighlighter.scrollTop = codeEditor.scrollTop;
+            syntaxHighlighter.scrollLeft = codeEditor.scrollLeft;
+        }
+
+        function renderUserMessage(message) {
+            const messageWrapper = document.createElement('div');
+            messageWrapper.className = 'flex mb-4 max-w-full justify-end';
+            messageWrapper.innerHTML = `<div class="p-3 rounded-lg max-w-xl bg-blue-600 text-white ml-auto"><p>${message}</p></div>`;
+            chatMessages.appendChild(messageWrapper);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        function renderBotMessage(text) {
+            const messageWrapper = document.createElement('div');
+            messageWrapper.className = 'flex mb-4 max-w-full justify-start';
+            messageWrapper.innerHTML = `<div class="p-3 rounded-lg bg-[#2a2a2a] text-gray-200 mr-auto bot-message"><p>${text.replace(/\n/g, '<br>')}</p></div>`;
+            return messageWrapper;
+        }
+
+        function showTypingIndicator() {
+            isTyping = true;
+            sendButton.disabled = true;
+            sendButton.classList.add('hidden');
+            stopButton.classList.remove('hidden');
+            const typingWrapper = document.createElement('div');
+            typingWrapper.id = 'typing-indicator';
+            typingWrapper.className = 'flex mb-4 max-w-full justify-start';
+            typingWrapper.innerHTML = `<div class="p-3 rounded-lg bg-[#2a2a2a] flex items-center space-x-1.5"><span class="w-2 h-2 bg-gray-400 rounded-full typing-dot"></span><span class="w-2 h-2 bg-gray-400 rounded-full typing-dot" style="animation-delay: 0.2s"></span><span class="w-2 h-2 bg-gray-400 rounded-full typing-dot" style="animation-delay: 0.4s"></span></div>`;
+            chatMessages.appendChild(typingWrapper);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        function removeTypingIndicator() {
+            const indicator = document.getElementById('typing-indicator');
+            if (indicator) indicator.remove();
+        }
+
+        function stopStreaming() {
+            if (streamingInterval) clearInterval(streamingInterval);
+            streamingInterval = null;
+            isTyping = false;
+            sendButton.disabled = false;
+            sendButton.classList.remove('hidden');
+            stopButton.classList.add('hidden');
+            removeTypingIndicator();
+        }
+
+        // ***** FUNÇÃO MODIFICADA *****
+        async function getBotResponse(prompt) {
+             const finalPrompt = `Você é um assistente de IA chamado Poza. Responda em texto simples. Pergunta: ${prompt}`;
+             try {
+                // Agora chamamos nossa própria API segura, não a do Google diretamente
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        prompt: finalPrompt,
+                        model: modelConfig[currentModel].modelId
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const result = await response.json();
+                return result.candidates[0]?.content?.parts[0]?.text || "Não consegui gerar uma resposta.";
+            } catch (error) {
+                console.error("API/Connection Error:", error);
+                return "Houve um problema ao conectar com a IA.";
+            }
+        }
+
+        // handleFormSubmit e o resto do seu código continuam iguais
+        async function handleFormSubmit(event) {
+            if (event) event.preventDefault();
+            if (isTyping) return;
+            const userMessage = chatInput.value.trim();
+            if (!userMessage) return;
+
+            welcomeMessage.classList.add('hidden');
+            renderUserMessage(userMessage);
+            chatInput.value = '';
+            chatInput.style.height = 'auto';
+            
+            showTypingIndicator();
+            const botResponse = await getBotResponse(userMessage);
+            removeTypingIndicator();
+            
+            const messageWrapper = renderBotMessage('');
+            chatMessages.appendChild(messageWrapper);
+            const textNode = messageWrapper.querySelector('p');
+            let index = 0;
+            streamingInterval = setInterval(() => {
+                if (index < botResponse.length) {
+                    textNode.innerHTML += botResponse.charAt(index).replace(/\n/g, '<br>');
+                    index++;
+                    chatArea.scrollTop = chatArea.scrollHeight;
+                } else {
+                    stopStreaming();
+                }
+            }, 20);
+        }
+        
+        onAuthStateChanged(auth, user => {
+            if (user) {
+                authScreen.classList.add('hidden');
+                appScreen.classList.remove('hidden');
+                appScreen.classList.add('md:flex');
+                const name = user.displayName || user.email.split('@')[0];
+                userAvatar.textContent = name.charAt(0).toUpperCase();
+                welcomeUserName.textContent = name;
+                checkWelcomeMessageVisibility();
+            } else {
+                authScreen.classList.remove('hidden');
+                appScreen.classList.add('hidden');
+                appScreen.classList.remove('md:flex');
+            }
+        });
+        
+        loginBtn.addEventListener('click', () => signInWithEmailAndPassword(auth, emailInput.value, passwordInput.value).catch(error => authError.textContent = "Erro: " + error.message));
+        signupBtn.addEventListener('click', () => createUserWithEmailAndPassword(auth, emailInput.value, passwordInput.value).catch(error => authError.textContent = "Erro: " + error.message));
+        googleLoginBtn.addEventListener('click', () => signInWithPopup(auth, provider).catch(error => authError.textContent = "Erro com Google: " + error.message));
+        logoutBtn.addEventListener('click', () => signOut(auth));
+        document.getElementById('new-chat-btn').addEventListener('click', () => {
+            chatMessages.innerHTML = '';
+            checkWelcomeMessageVisibility();
+        });
+        chatForm.addEventListener('submit', handleFormSubmit);
+        stopButton.addEventListener('click', stopStreaming);
+        chatInput.addEventListener('input', () => { chatInput.style.height = 'auto'; chatInput.style.height = (chatInput.scrollHeight) + 'px'; });
+        chatInput.addEventListener('keydown', (event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); chatForm.requestSubmit(); } });
+
+    </script>
+</body>
+</html>
